@@ -1,36 +1,36 @@
 
 # Table of Contents
 
-1.  [The assignment](#orgca3b979)
-2.  [Scope Choice](#org2bc21ee)
-    1.  [Why?](#org0fd0efd)
-3.  [Proposal](#orge011d6e)
-    1.  [Order keeper bot](#org4b2d890)
-        1.  [Main responsibilites](#org90e89f0)
-        2.  [Architecture](#org414af9b)
-        3.  [Thread Layout of stages on hardware](#orga67882a)
-4.  [Keeper Fleet](#orgefb91fe)
-        1.  [Core responsibilities](#orgd200674)
-        2.  [Detection and reviving](#orgd32fee0)
-        3.  [Blocking](#orgec8734d)
-        4.  [Market Division.](#org2724939)
-5.  [Hardest / Most overlooked part of this system](#orgd9085e7)
-    1.  [Transaction reliability under stress](#org603ebf6)
-    2.  [Bundle racing](#org1f39d7b)
-    3.  [Split between liquidation check and signed blob ingestion on the keeper](#org22815fc)
-    4.  [Parallelism of work across keepers](#orge5705ec)
-    5.  [Confirmation-window race](#org67dd964)
-    6.  [Design requirements](#orgc4ba6a8)
-    7.  [Infra for metrics consumption](#orgddfdb90)
-    8.  [Transaction confirmation / Error parsing and retry](#orge4742b0)
-6.  [Cold boot of a keeper](#orgbaa3cbf)
-7.  [Data Flow](#org9703ea0)
-8.  [Other aspects considered but not explored](#org01d32c1)
-    1.  [Parsing data](#orgd4baf39)
+1.  [The assignment](#orgc2d1e62)
+2.  [Scope Choice](#orgca6eff0)
+    1.  [Why?](#orga441726)
+3.  [Proposal](#orgd989862)
+    1.  [Order keeper bot](#orge2dd6db)
+        1.  [Main responsibilites](#orga1093d9)
+        2.  [Architecture](#orgbce8573)
+        3.  [Thread Layout of stages on hardware](#org6659b14)
+4.  [Keeper Fleet](#org9bca37c)
+        1.  [Core responsibilities](#org93a873c)
+        2.  [Detection and reviving](#org99cb5d2)
+        3.  [Blocking](#orgf8a616f)
+        4.  [Market Division.](#org17ecdb4)
+5.  [Hardest / Most overlooked part of this system](#orgde421b1)
+    1.  [Transaction reliability under stress](#org5abc784)
+    2.  [Bundle racing](#org6c3afd4)
+    3.  [Split between liquidation check and signed blob ingestion on the keeper](#org7e127a1)
+    4.  [Parallelism of work across keepers](#org1e2ae6f)
+    5.  [Confirmation-window race](#org9b252ee)
+    6.  [Design requirements](#org3ba3aba)
+    7.  [Infra for metrics consumption](#orga96e9c8)
+    8.  [Transaction confirmation / Error parsing and retry](#orgfa90550)
+6.  [Cold boot of a keeper](#org0341505)
+7.  [Data Flow](#org11f0222)
+8.  [Other aspects considered but not explored](#orgd4afcad)
+    1.  [Parsing data](#orgbe1a8a6)
 
 
 
-<a id="orgca3b979"></a>
+<a id="orgc2d1e62"></a>
 
 # The assignment
 
@@ -52,31 +52,31 @@ Time limit: 48 hours, starting from when you receive this message.
 Total: 17 hours
 
 
-<a id="org2bc21ee"></a>
+<a id="orgca6eff0"></a>
 
 # Scope Choice
 
 I stuck with the keeper system, trimmed towards an order keeper system. 
 
 
-<a id="org0fd0efd"></a>
+<a id="orga441726"></a>
 
 ## Why?
 
 Because in my opinion for any on chain trading platform, it&rsquo;s the load bearing component. Also exercises most of the protocol, which would introduce me to the repo and it&rsquo;s subparts (Quite a challenge!)
 
 
-<a id="orge011d6e"></a>
+<a id="orgd989862"></a>
 
 # Proposal
 
 
-<a id="org4b2d890"></a>
+<a id="orge2dd6db"></a>
 
 ## Order keeper bot
 
 
-<a id="org90e89f0"></a>
+<a id="orga1093d9"></a>
 
 ### Main responsibilites
 
@@ -90,7 +90,7 @@ Because in my opinion for any on chain trading platform, it&rsquo;s the load bea
 -   Assumes external manager for roles provision and configs for these keepers. I.e ORDER<sub>KEEPER</sub>
 
 
-<a id="org414af9b"></a>
+<a id="orgbce8573"></a>
 
 ### Architecture
 
@@ -197,7 +197,9 @@ Because in my opinion for any on chain trading platform, it&rsquo;s the load bea
         
         Which looks like:
         
-        ![img](/tmp/babel-qRD8u8/plantuml-eDNhMp.png)
+        ![img](tpu-processing.svg)
+        
+        ![img](/tmp/babel-qRD8u8/plantuml-OBHnKa.png)
         
         While the actual sending operations over the individual queues:
         
@@ -220,7 +222,7 @@ Because in my opinion for any on chain trading platform, it&rsquo;s the load bea
         -   I havent&rsquo; calculated instruction sizes, but by eyeballing I see a large number of accounts per instruction. If they spill into multi transaction batches (I see the sdk has Batch helpers and sequential confirm and send send<sub>all</sub>() methods), but this opens up issues, where atomicity is not guaranteed. if there&rsquo;s a batch of 3, tx 2 and 3 could fail and leave my keeper in a confused state. For this, I would use Jito Bundles that provides atomicity to avoid this issue, at the cost of higher auction fees.
 
 
-<a id="orga67882a"></a>
+<a id="org6659b14"></a>
 
 ### Thread Layout of stages on hardware
 
@@ -232,12 +234,12 @@ Hence:
 -   TPU Stage (Egress). 2 Threads. Same CCD. Drains threads from the 2 channels from Executor stage, and builds transactions, inserts signed blobs and sends via TPU to leaders with a fanout strategy
 
 
-<a id="orgefb91fe"></a>
+<a id="org9bca37c"></a>
 
 # Keeper Fleet
 
 
-<a id="orgd200674"></a>
+<a id="org93a873c"></a>
 
 ### Core responsibilities
 
@@ -253,7 +255,7 @@ This design is load bearing on configs used by keepers. The config would be a sm
     } 
 
 
-<a id="orgd32fee0"></a>
+<a id="org99cb5d2"></a>
 
 ### Detection and reviving
 
@@ -264,7 +266,7 @@ This needs a service running that polls mapped keepers on it&rsquo;s /health end
 -   In case a keeper is down, try to autorevive, or notify admins
 
 
-<a id="orgec8734d"></a>
+<a id="orgf8a616f"></a>
 
 ### Blocking
 
@@ -272,7 +274,7 @@ For MVP, this would require a seperate tx stream from geyser, belonging to this 
 The idea is to use [logsSubscribe](https://solana.com/docs/rpc/websocket/logssubscribe) via geyser, and watch error rates (runtime errors only) and map to keepers. Using a modified token bucket algorithm, we can start maintaining a map `HashMap<Pubkey,u64>` of failure counts that if crosses a threshold, could remove ORDER<sub>KEEPER</sub> role from said keeper. Or at least notify as sysadmin
 
 
-<a id="org2724939"></a>
+<a id="org17ecdb4"></a>
 
 ### Market Division.
 
@@ -280,12 +282,12 @@ The idea here is division of labor.
 We get a list of markets as a rpc fetch (no need to stream, since this is low volume update), and hash markets based on identifier (maybe Market Key?), and use that as a round robin dispatch, when autogenerating config files `Hash(MarketKey)%keeper_count` . And this could be rebalanced, if the Detection section detects a keeper is down, to rebalance, updating keeper<sub>count</sub>
 
 
-<a id="orgd9085e7"></a>
+<a id="orgde421b1"></a>
 
 # Hardest / Most overlooked part of this system
 
 
-<a id="org603ebf6"></a>
+<a id="org5abc784"></a>
 
 ## Transaction reliability under stress
 
@@ -293,7 +295,7 @@ Although my suggestion of tpu client next, improves reliability of transactions 
 My naive solution to this, would be to maximize compute budget priority fees to have my transactions executed
 
 
-<a id="org1f39d7b"></a>
+<a id="org6c3afd4"></a>
 
 ## Bundle racing
 
@@ -302,7 +304,7 @@ The TPU Egress part of the keeper pipeline is a bit fragile. There&rsquo;s repli
 Without a central orchestrator efficiency could be at risk, but without numbers and for v1 I think my design is a good starting point. Also as mentioned in the design above, JITO bundles could help provide atomicity at the cost of higher fees
 
 
-<a id="org22815fc"></a>
+<a id="org7e127a1"></a>
 
 ## Split between liquidation check and signed blob ingestion on the keeper
 
@@ -311,14 +313,14 @@ This design choice stems from the fact, that hot path should not block on networ
 The concern here is wasted cycles for scanning redundant accounts that could possibly be closed by transactions being sent. But, without numbers it&rsquo;s hard to tell if this is a concern of over optimization. Metrics defined in above section would be able to show if this is worth improving. 
 
 
-<a id="orge5705ec"></a>
+<a id="org1e2ae6f"></a>
 
 ## Parallelism of work across keepers
 
 My current design, splits work based on markets, the issue is that caps parallelism to n (n = number of markets). Ideally I would like to maintain keepers based off position, but that requires heavier synchronization and orchestration by the manager node. The manager node has been kept lightweight for v1.
 
 
-<a id="org67dd964"></a>
+<a id="org9b252ee"></a>
 
 ## Confirmation-window race
 
@@ -335,7 +337,7 @@ Issues with this approach:
 2.  Heavier load on Ingress stage. Much faster updates = lesser time for executor stage to breathe.
 
 
-<a id="orgc4ba6a8"></a>
+<a id="org3ba3aba"></a>
 
 ## Design requirements
 
@@ -343,7 +345,7 @@ The design needs 1 keeper per CCD to be efficient.
 Which requires either cgroup twiddling or isolcpus to run uninterrupted for highest performance benefits. and each cpu governor mode in the CCD to be to set to performance
 
 
-<a id="orgddfdb90"></a>
+<a id="orga96e9c8"></a>
 
 ## Infra for metrics consumption
 
@@ -351,7 +353,7 @@ I have defined metrics but not described an infra system to consume those metric
 I would choose prometheus to ingest metrics and grafana for dashboards for the same.
 
 
-<a id="orge4742b0"></a>
+<a id="orgfa90550"></a>
 
 ## Transaction confirmation / Error parsing and retry
 
@@ -365,7 +367,7 @@ On failure, this has some edge cases:
 3.  Not valid liquidation, don&rsquo;t retry, and wait for streams to provide another opportunity
 
 
-<a id="orgbaa3cbf"></a>
+<a id="org0341505"></a>
 
 # Cold boot of a keeper
 
@@ -383,7 +385,7 @@ The logic would be as such:
 6.  Open up geyser and PriceFeed streams
 
 
-<a id="org9703ea0"></a>
+<a id="org11f0222"></a>
 
 # Data Flow
 
@@ -392,12 +394,12 @@ The sections above go into detail, but this is a graphical representation
 ![img](data-flow-diagram.svg)
 
 
-<a id="org01d32c1"></a>
+<a id="orgd4afcad"></a>
 
 # Other aspects considered but not explored
 
 
-<a id="orgd4baf39"></a>
+<a id="orgbe1a8a6"></a>
 
 ## Parsing data
 
