@@ -160,7 +160,7 @@ Total:
     -   Tracking metrics on transactions sent / second vs landed would be a good way to measure health and keeper bot service quality
     -   If using TPU Client Next. Auto handles fanout strategy.  
         
-        ![img](tpu.svg)
+        ![img](images/tpu.svg)
 
 
 <a id="org346a4ed"></a>
@@ -258,11 +258,11 @@ Total:
 -   geyser can only transport via grpc via protobuf. Not sure what format chainlink provides, but based on the crate it&rsquo;s a byte array too. TODO: would need to measure the actual impact of deserializing these vs the cost of aggregating them to send to keepers.
 -   ISSUE: This is creating a single point of failure. As opposed to this, a geyser stream and a chainlink data stream to individual keepers could be appropriate too. Would remove overhead of coordinating node failures and boot ups too. targeted data streams would help too, with the overhead of matching them individually. Would remove latency of passing between dispatcher and the data sources
 
-![img](dispatcher.svg)
+_[dispatcher diagram missing — no `dispatcher.svg` was ever generated]_
 
 vs
 
-![img](simplified.svg)
+![img](images/diagram.svg)
 
 
 <a id="org0f777e2"></a>
