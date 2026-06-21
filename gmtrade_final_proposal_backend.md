@@ -154,26 +154,33 @@ Because in my opinion for any on chain trading platform, it&rsquo;s the load bea
         -   This design uses a single stream for data. i.e: single geyser stream, single price feed stream.
             A better design would be to do something like so:
         
-            async fn ingest_stream1() -> Result<GeyserUpdate, Err>{
-            todo!();
+            ```rust
+            async fn ingest_stream1() -> Result<GeyserUpdate, Err> {
+                todo!();
             }
-            async fn ingest_stream2()-> Result<GeyserUpdate, Err>{
-            todo!();
+
+            async fn ingest_stream2() -> Result<GeyserUpdate, Err> {
+                todo!();
             }
+
             loop {
-            // using a ring buffer here, because the channel needs to be drained by main thread. Mutex is used here because main thread could drain at the same time, a true ring buffer would be lock free with Acq:Rel semantics, which a channel would provide. This is just a Proof of concept
-            let mut geyser_updates: Arc<Mutex<VecDeque<GeyserUpdates>>>;
-            tokio_select!{
-                Some(update) = ingest_stream1() => {
-                let guard =  geyser_updates.lock().unwrap();
-                guard.push_back(update);
-                }
-                Some(update) = ingest_stream2() => {
-                let guard =  geyser_updates.lock().unwrap();
-                guard.push_back(update);
-                }
+                // using a ring buffer here, because the channel needs to be drained by main thread.
+                // Mutex is used here because main thread could drain at the same time, a true ring
+                // buffer would be lock free with Acq:Rel semantics, which a channel would provide.
+                // This is just a Proof of concept
+                let mut geyser_updates: Arc<Mutex<VecDeque<GeyserUpdates>>>;
+                tokio::select! {
+                    Some(update) = ingest_stream1() => {
+                        let guard = geyser_updates.lock().unwrap();
+                        guard.push_back(update);
+                    }
+                    Some(update) = ingest_stream2() => {
+                        let guard = geyser_updates.lock().unwrap();
+                        guard.push_back(update);
+                    }
                 }
             }
+            ```
 
 3.  Transaction sending & reliability
 
@@ -197,13 +204,13 @@ Because in my opinion for any on chain trading platform, it&rsquo;s the load bea
         
         Which looks like:
         
-        ![img](tpu-processing.svg)
+        ![img](images/tpu-processing.svg)
         
         ![img](/tmp/babel-qRD8u8/plantuml-OBHnKa.png)
         
         While the actual sending operations over the individual queues:
         
-        ![img](tpu-keeper.svg)
+        ![img](images/tpu-keeper.svg)
     
     3.  Metrics to track
     
@@ -249,10 +256,14 @@ Hence:
 
 This design is load bearing on configs used by keepers. The config would be a small .json file that looks like
 
-      ValidMarkets: {
-      "BTC / USDC",
-      "ETH / SOL"
-    } 
+```json
+{
+  "ValidMarkets": [
+    "BTC / USDC",
+    "ETH / SOL"
+  ]
+}
+```
 
 
 <a id="org99cb5d2"></a>
@@ -391,7 +402,7 @@ The logic would be as such:
 
 The sections above go into detail, but this is a graphical representation
 
-![img](data-flow-diagram.svg)
+![img](images/data-flow-diagram.svg)
 
 
 <a id="orgd4afcad"></a>
